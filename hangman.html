@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangman!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+  :root {
+    --bg: #fef6e4;
+    --ink: #172c66;
+    --accent: #f582ae;
+    --accent-2: #8bd3dd;
+    --good: #7dce82;
+    --bad: #e0525a;
+    --paper: #fffdf7;
+    --shadow: rgba(23, 44, 102, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(245, 130, 174, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(139, 211, 221, 0.2) 0%, transparent 40%);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1 {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(3rem, 8vw, 5rem);
+    color: var(--ink);
+    text-shadow: 4px 4px 0 var(--accent);
+    margin-bottom: 10px;
+    transform: rotate(-2deg);
+    letter-spacing: -1px;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    color: var(--ink);
+    opacity: 0.7;
+    margin-bottom: 20px;
+  }
+
+  .game-card {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 24px;
+    padding: 30px;
+    box-shadow: 8px 8px 0 var(--shadow);
+    max-width: 640px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  svg.gallows {
+    width: 200px;
+    height: 220px;
+  }
+
+  .gallows line, .gallows circle, .gallows path {
+    stroke: var(--ink);
+    stroke-width: 5;
+    stroke-linecap: round;
+    fill: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .gallows .visible { opacity: 1; }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .wrong-count {
+    font-size: 1rem;
+    background: var(--accent);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    border: 2px solid var(--ink);
+  }
+
+  .wrong-letters {
+    font-size: 0.95rem;
+    color: var(--bad);
+    font-weight: 600;
+    min-height: 24px;
+    letter-spacing: 2px;
+  }
+
+  .word-display {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+
+  .letter-slot {
+    width: 36px;
+    height: 48px;
+    border-bottom: 4px solid var(--ink);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--ink);
+    padding-bottom: 2px;
+  }
+
+  .letter-slot.space {
+    border-bottom: none;
+    width: 16px;
+  }
+
+  .letter-slot.revealed {
+    animation: pop 0.3s ease;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.5); }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .keyboard {
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+    gap: 6px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .key {
+    aspect-ratio: 1;
+    background: var(--paper);
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: clamp(0.75rem, 2.2vw, 1.1rem);
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: 2px 2px 0 var(--shadow);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+
+  .key:hover:not(:disabled) {
+    background: var(--accent-2);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--shadow);
+  }
+
+  .key:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--shadow);
+  }
+
+  .key.correct {
+    background: var(--good);
+    color: white;
+    cursor: default;
+  }
+
+  .key.wrong {
+    background: var(--bad);
+    color: white;
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  .key:disabled {
+    cursor: default;
+    transform: none;
+  }
+
+  .status-message {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    text-align: center;
+    min-height: 50px;
+    transition: all 0.3s;
+  }
+
+  .status-message.win { color: var(--good); }
+  .status-message.lose { color: var(--bad); }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn {
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: 12px 28px;
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--shadow);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+
+  .btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--shadow);
+  }
+
+  .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--shadow);
+  }
+
+  .btn.secondary {
+    background: var(--accent-2);
+    color: var(--ink);
+  }
+
+  .hint {
+    font-size: 0.95rem;
+    color: var(--ink);
+    opacity: 0.65;
+    font-style: italic;
+    text-align: center;
+  }
+
+  .category-tag {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--ink);
+    opacity: 0.5;
+    font-weight: 600;
+  }
+
+  @media (max-width: 500px) {
+    .letter-slot { width: 28px; height: 40px; font-size: 1.4rem; }
+    svg.gallows { width: 160px; height: 180px; }
+    .keyboard { gap: 4px; }
+  }
+
+  .confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+  <h1>Hangman!</h1>
+  <div class="subtitle">Guess the word, one letter at a time</div>
+
+  <div class="game-card">
+    <div class="category-tag" id="category">Category</div>
+
+    <div class="stage">
+      <svg class="gallows" viewBox="0 0 200 220">
+        <!-- Base -->
+        <line class="part" data-step="0" x1="20" y1="210" x2="120" y2="210"/>
+        <!-- Pole -->
+        <line class="part" data-step="0" x1="50" y1="210" x2="50" y2="20"/>
+        <!-- Top beam -->
+        <line class="part" data-step="0" x1="50" y1="20" x2="140" y2="20"/>
+        <!-- Rope -->
+        <line class="part" data-step="0" x1="140" y1="20" x2="140" y2="50"/>
+        <!-- Head -->
+        <circle class="part" data-step="1" cx="140" cy="65" r="15"/>
+        <!-- Body -->
+        <line class="part" data-step="2" x1="140" y1="80" x2="140" y2="130"/>
+        <!-- Left arm -->
+        <line class="part" data-step="3" x1="140" y1="95" x2="120" y2="115"/>
+        <!-- Right arm -->
+        <line class="part" data-step="4" x1="140" y1="95" x2="160" y2="115"/>
+        <!-- Left leg -->
+        <line class="part" data-step="5" x1="140" y1="130" x2="120" y2="160"/>
+        <!-- Right leg -->
+        <line class="part" data-step="6" x1="140" y1="130" x2="160" y2="160"/>
+      </svg>
+
+      <div class="info">
+        <div class="wrong-count" id="wrong-count">0 / 6 wrong</div>
+        <div class="wrong-letters" id="wrong-letters"></div>
+      </div>
+    </div>
+
+    <div class="word-display" id="word-display"></div>
+
+    <div class="status-message" id="status"></div>
+
+    <div class="keyboard" id="keyboard"></div>
+
+    <div class="actions">
+      <button class="btn" id="new-game">New Word</button>
+    </div>
+
+    <div class="hint">Tip: You can also use your keyboard to guess!</div>
+  </div>
+
+<script>
+  // Word bank organized by category — all kid-friendly
+  const WORDS = {
+    'Animals': ['elephant', 'giraffe', 'penguin', 'dolphin', 'kangaroo', 'butterfly', 'octopus', 'cheetah', 'hedgehog', 'flamingo', 'rabbit', 'turtle', 'squirrel', 'raccoon', 'panda', 'koala', 'zebra', 'tiger', 'monkey', 'parrot', 'hamster', 'goldfish', 'dragonfly', 'chicken'],
+    'Food': ['pancake', 'spaghetti', 'pizza', 'sandwich', 'strawberry', 'chocolate', 'pineapple', 'cupcake', 'broccoli', 'watermelon', 'popcorn', 'noodles', 'cookie', 'muffin', 'banana', 'apple', 'burrito', 'pretzel', 'waffle', 'donut'],
+    'Places': ['beach', 'mountain', 'library', 'playground', 'castle', 'jungle', 'desert', 'island', 'forest', 'aquarium', 'museum', 'bakery', 'school', 'garden', 'farm', 'zoo', 'park', 'kitchen'],
+    'Things': ['umbrella', 'backpack', 'telescope', 'skateboard', 'bicycle', 'guitar', 'pillow', 'blanket', 'pencil', 'camera', 'scissors', 'balloon', 'puzzle', 'rainbow', 'trumpet', 'crayon', 'bubble', 'sticker'],
+    'Activities': ['swimming', 'dancing', 'painting', 'singing', 'reading', 'jumping', 'climbing', 'cooking', 'laughing', 'drawing', 'running', 'skipping', 'baking', 'camping', 'fishing', 'hiking']
+  };
+
+  const MAX_WRONG = 6;
+  let state = {
+    word: '',
+    category: '',
+    guessed: new Set(),
+    wrong: 0,
+    over: false,
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  function pickWord() {
+    const categories = Object.keys(WORDS);
+    const cat = categories[Math.floor(Math.random() * categories.length)];
+    const list = WORDS[cat];
+    const word = list[Math.floor(Math.random() * list.length)];
+    return { word: word.toLowerCase(), category: cat };
+  }
+
+  function newGame() {
+    const { word, category } = pickWord();
+    state = { word, category, guessed: new Set(), wrong: 0, over: false };
+    $('category').textContent = category;
+    $('status').textContent = '';
+    $('status').className = 'status-message';
+    renderWord();
+    renderKeyboard();
+    renderGallows();
+    updateWrong();
+  }
+
+  function renderWord() {
+    const container = $('word-display');
+    container.innerHTML = '';
+    for (const ch of state.word) {
+      const slot = document.createElement('div');
+      if (ch === ' ') {
+        slot.className = 'letter-slot space';
+      } else {
+        slot.className = 'letter-slot';
+        if (state.guessed.has(ch) || state.over) {
+          slot.textContent = ch.toUpperCase();
+          slot.classList.add('revealed');
+          if (state.over && !state.guessed.has(ch)) {
+            slot.style.color = 'var(--bad)';
+          }
+        }
+      }
+      container.appendChild(slot);
+    }
+  }
+
+  function renderKeyboard() {
+    const kb = $('keyboard');
+    kb.innerHTML = '';
+    const letters = 'abcdefghijklmnopqrstuvwxyz';
+    for (const letter of letters) {
+      const btn = document.createElement('button');
+      btn.className = 'key';
+      btn.textContent = letter.toUpperCase();
+      btn.dataset.letter = letter;
+      if (state.guessed.has(letter)) {
+        btn.disabled = true;
+        if (state.word.includes(letter)) {
+          btn.classList.add('correct');
+        } else {
+          btn.classList.add('wrong');
+        }
+      } else if (state.over) {
+        btn.disabled = true;
+      }
+      btn.addEventListener('click', () => guess(letter));
+      kb.appendChild(btn);
+    }
+  }
+
+  function renderGallows() {
+    const parts = document.querySelectorAll('.gallows .part');
+    parts.forEach(p => {
+      const step = parseInt(p.dataset.step);
+      // Step 0 = always visible (gallows structure)
+      // Steps 1-6 appear as wrong count grows
+      if (step === 0 || step <= state.wrong) {
+        p.classList.add('visible');
+      } else {
+        p.classList.remove('visible');
+      }
+    });
+  }
+
+  function updateWrong() {
+    $('wrong-count').textContent = `${state.wrong} / ${MAX_WRONG} wrong`;
+    const wrongLetters = [...state.guessed]
+      .filter(l => !state.word.includes(l))
+      .map(l => l.toUpperCase())
+      .join(' ');
+    $('wrong-letters').textContent = wrongLetters;
+  }
+
+  function guess(letter) {
+    if (state.over || state.guessed.has(letter)) return;
+    state.guessed.add(letter);
+
+    if (!state.word.includes(letter)) {
+      state.wrong++;
+    }
+
+    renderWord();
+    renderKeyboard();
+    renderGallows();
+    updateWrong();
+    checkEnd();
+  }
+
+  function checkEnd() {
+    const allRevealed = [...state.word].every(ch => ch === ' ' || state.guessed.has(ch));
+    if (allRevealed) {
+      state.over = true;
+      $('status').textContent = 'You won! 🎉';
+      $('status').className = 'status-message win';
+      celebrate();
+      renderKeyboard();
+    } else if (state.wrong >= MAX_WRONG) {
+      state.over = true;
+      $('status').textContent = `Aw, it was "${state.word.toUpperCase()}"`;
+      $('status').className = 'status-message lose';
+      renderWord();
+      renderKeyboard();
+    }
+  }
+
+  function celebrate() {
+    const colors = ['#f582ae', '#8bd3dd', '#7dce82', '#fec89a', '#a0c4ff'];
+    for (let i = 0; i < 40; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.background = colors[Math.floor(Math.random() * colors.length)];
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.top = '-20px';
+      c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      c.style.transform = `rotate(${Math.random() * 360}deg)`;
+      document.body.appendChild(c);
+      const duration = 2000 + Math.random() * 1500;
+      const drift = (Math.random() - 0.5) * 200;
+      c.animate([
+        { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
+        { transform: `translate(${drift}px, 110vh) rotate(${Math.random() * 720}deg)`, opacity: 0.7 }
+      ], { duration, easing: 'cubic-bezier(.3,.7,.7,1)' });
+      setTimeout(() => c.remove(), duration);
+    }
+  }
+
+  // Physical keyboard support
+  document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (/^[a-z]$/.test(key)) {
+      guess(key);
+    } else if (key === 'enter' && state.over) {
+      newGame();
+    }
+  });
+
+  $('new-game').addEventListener('click', newGame);
+
+  newGame();
+</script>
+</body>
+</html>
