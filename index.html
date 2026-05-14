@@ -283,11 +283,27 @@
     pointer-events: none;
     z-index: 100;
   }
+
+  .view-counter {
+    margin-top: 16px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+
+  .view-counter:hover { opacity: 1; }
+
+  .view-counter img { display: block; }
 </style>
 </head>
 <body>
   <h1>Hangman!</h1>
   <div class="subtitle">Guess the word, one letter at a time</div>
+
+  <div class="view-counter">
+    <a href="https://hits.sh/hangman.grntbnsn.com/" target="_blank" rel="noopener">
+      <img src="https://hits.sh/hangman.grntbnsn.com.svg?style=flat-square&label=views&color=f582ae&labelColor=172c66" alt="View counter" />
+    </a>
+  </div>
 
   <div class="game-card">
     <div class="category-tag" id="category">Category</div>
